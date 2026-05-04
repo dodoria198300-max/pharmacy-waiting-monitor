@@ -716,6 +716,9 @@ async function init() {
       }
     )
     .subscribe();
+
+  // 1分ごとに経過時間を再描画
+  setInterval(() => renderQueue(), 60000);
 }
 
 init();
