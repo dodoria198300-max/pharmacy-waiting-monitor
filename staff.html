@@ -498,21 +498,27 @@ let queue = [];
 let settings = { baseMin: 10, addMin: 5 };
 let ippokaChecked = false;
 
-// 設定読み込み
-function loadSettings() {
-  const saved = localStorage.getItem('wm_settings');
-  if (saved) {
-    settings = JSON.parse(saved);
-    document.getElementById('baseMin').value = settings.baseMin;
-    document.getElementById('addMin').value = settings.addMin;
-    document.getElementById('ippokaAddMin').textContent = settings.addMin;
+// 設定読み込み（DBから）
+async function loadSettings() {
+  const { data } = await sb.from('settings').select('key, value');
+  if (data && data.length > 0) {
+    data.forEach(r => {
+      if (r.key === 'base_min') settings.baseMin = parseInt(r.value) || 10;
+      if (r.key === 'add_min')  settings.addMin  = parseInt(r.value) || 5;
+    });
   }
+  document.getElementById('baseMin').value = settings.baseMin;
+  document.getElementById('addMin').value  = settings.addMin;
+  document.getElementById('ippokaAddMin').textContent = settings.addMin;
 }
 
-function saveSettings() {
+async function saveSettings() {
   settings.baseMin = parseInt(document.getElementById('baseMin').value) || 10;
-  settings.addMin = parseInt(document.getElementById('addMin').value) || 5;
-  localStorage.setItem('wm_settings', JSON.stringify(settings));
+  settings.addMin  = parseInt(document.getElementById('addMin').value)  || 5;
+  await sb.from('settings').upsert([
+    { key: 'base_min', value: String(settings.baseMin) },
+    { key: 'add_min',  value: String(settings.addMin)  }
+  ]);
   document.getElementById('ippokaAddMin').textContent = settings.addMin;
   const ok = document.getElementById('saveOk');
   ok.classList.add('show');
