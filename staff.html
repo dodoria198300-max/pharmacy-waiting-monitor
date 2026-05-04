@@ -178,7 +178,23 @@
     margin-bottom: 16px;
     overflow: hidden;
   }
-  .queue-header {
+  .btn-toggle-calling {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-toggle-calling:hover { border-color: var(--accent); color: var(--text); }
+  .btn-toggle-calling.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -414,7 +430,10 @@
 <div class="queue-card">
   <div class="queue-header">
     <h2>呼び出し待ちリスト</h2>
-    <span class="queue-count" id="queueCountBadge">0件</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn-toggle-calling" id="btnToggleCalling" onclick="toggleShowCalling()">呼出済を表示</button>
+      <span class="queue-count" id="queueCountBadge">0件</span>
+    </div>
   </div>
   <div id="queueList">
     <div class="queue-empty">待ち患者はいません</div>
@@ -553,13 +572,23 @@ async function callTicket(id, ticketNo) {
   showToast(`${String(ticketNo).padStart(3,'0')} 番をお呼び出し中`);
 }
 
+let showCalling = false;
+
+function toggleShowCalling() {
+  showCalling = !showCalling;
+  const btn = document.getElementById('btnToggleCalling');
+  btn.classList.toggle('active', showCalling);
+  btn.textContent = showCalling ? '呼出済を非表示' : '呼出済を表示';
+  renderQueue();
+}
+
 // リスト描画
 function renderQueue() {
   const today = new Date().toISOString().slice(0, 10);
   const todayQueue = queue.filter(r => r.created_at.slice(0, 10) === today);
   const waitingItems = todayQueue.filter(r => r.status === 'waiting');
   const callingItems = todayQueue.filter(r => r.status === 'calling');
-  const displayItems = [...callingItems, ...waitingItems];
+  const displayItems = showCalling ? [...callingItems, ...waitingItems] : waitingItems;
 
   document.getElementById('queueCountBadge').textContent = waitingItems.length + '件';
 
