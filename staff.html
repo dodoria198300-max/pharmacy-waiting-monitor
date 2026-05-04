@@ -278,6 +278,20 @@
     border: 1px solid var(--border);
     font-size: 12px;
   }
+  .btn-left {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-left:hover { border-color: var(--red); color: var(--red); }
 
   /* 待ち時間サマリ */
   .summary-row {
@@ -562,6 +576,17 @@ function closeFlash() {
   document.getElementById('ticketFlash').classList.remove('show');
 }
 
+// 帰宅
+async function leftTicket(id, ticketNo) {
+  if (!confirm(`${String(ticketNo).padStart(3,'0')} 番を途中帰宅として処理しますか？`)) return;
+  const { error } = await sb
+    .from('waiting_queue')
+    .update({ status: 'left' })
+    .eq('id', id);
+  if (error) { showToast('エラー: ' + error.message); return; }
+  showToast(`${String(ticketNo).padStart(3,'0')} 番を帰宅処理しました`);
+}
+
 // 呼び出し
 async function callTicket(id, ticketNo) {
   const { error } = await sb
@@ -607,12 +632,14 @@ function renderQueue() {
     const btn = isCalling
       ? '<button class="btn-call calling-state">呼出済</button>'
       : `<button class="btn-call" onclick="callTicket('${r.id}', ${r.ticket_no})">呼び出し</button>`;
+    const btnLeft = `<button class="btn-left" onclick="leftTicket('${r.id}', ${r.ticket_no})">帰宅</button>`;
     return `
       <div class="queue-item ${isCalling ? 'calling' : ''}">
         <span class="ticket-num">${no}</span>
         <span class="ticket-tag ${tagClass}">${tagLabel}</span>
         <span class="ticket-time">${elapsed}分前</span>
         ${btn}
+        ${btnLeft}
       </div>`;
   }).join('');
 }
