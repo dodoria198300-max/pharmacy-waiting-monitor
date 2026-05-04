@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>待ち時間モニター</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0c12;
+    color: #e8eaf0;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .label {
+    font-size: clamp(18px, 3vw, 32px);
+    font-weight: 500;
+    color: #7b80a0;
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+  }
+
+  .value {
+    font-size: clamp(100px, 22vw, 220px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -4px;
+    transition: opacity 0.4s;
+  }
+
+  .unit {
+    font-size: clamp(28px, 5vw, 56px);
+    font-weight: 400;
+    color: #7b80a0;
+    letter-spacing: 0.1em;
+    margin-bottom: 60px;
+  }
+
+  .divider {
+    width: clamp(60px, 12vw, 120px);
+    height: 2px;
+    background: #2e3248;
+    margin: 40px 0;
+    border-radius: 1px;
+  }
+
+  .count-value { color: #4f8ef7; }
+  .time-value  { color: #e8eaf0; }
+
+  /* ゼロのとき少し暗く */
+  .value.zero { color: #3a3e55; }
+
+  /* 更新フラッシュ */
+  @keyframes flash {
+    0%   { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+  .flash { animation: flash 0.35s ease-out; }
+
+  /* 接続状態 */
+  .conn {
+    position: fixed;
+    bottom: 20px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #3a3e55;
+  }
+  .conn-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #2ecc71;
+    animation: blink 3s infinite;
+  }
+  .conn-dot.err { background: #e74c3c; animation: none; }
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+  }
+</style>
+</head>
+<body>
+
+<div class="label">現在の待ち人数</div>
+<div class="value count-value" id="countVal">0</div>
+<div class="unit">名</div>
+
+<div class="divider"></div>
+
+<div class="label">目安待ち時間</div>
+<div class="value time-value" id="timeVal">0</div>
+<div class="unit">分</div>
+
+<div class="conn">
+  <div class="conn-dot" id="connDot"></div>
+  <span id="connLabel">接続中</span>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jcveasjdfcymxnmbbvka.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjdmVhc2pkZmN5bXhubWJidmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzE3NjksImV4cCI6MjA5MzQ0Nzc2OX0.xAKRFNjf5kkyf3kUjTJtprIrYaIpa80DHx2L4KEkYDg';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const DEFAULT_BASE = 10;
+const DEFAULT_ADD  = 5;
+
+function getSettings() {
+  try {
+    const s = localStorage.getItem('wm_settings');
+    return s ? JSON.parse(s) : { baseMin: DEFAULT_BASE, addMin: DEFAULT_ADD };
+  } catch { return { baseMin: DEFAULT_BASE, addMin: DEFAULT_ADD }; }
+}
+
+function flash(el) {
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+}
+
+function update(queue) {
+  const today = new Date().toISOString().slice(0, 10);
+  const waiting = queue.filter(r =>
+    r.status === 'waiting' &&
+    r.created_at.slice(0, 10) === today
+  );
+
+  const s = getSettings();
+  const count = waiting.length;
+  const totalMin = waiting.reduce((sum, r) =>
+    sum + s.baseMin + (r.is_ippoka ? s.addMin : 0), 0
+  );
+
+  const countEl = document.getElementById('countVal');
+  const timeEl  = document.getElementById('timeVal');
+
+  countEl.textContent = count;
+  timeEl.textContent  = totalMin;
+
+  countEl.className = 'value count-value' + (count === 0 ? ' zero' : '');
+  timeEl.className  = 'value time-value'  + (totalMin === 0 ? ' zero' : '');
+
+  flash(countEl);
+  flash(timeEl);
+}
+
+async function init() {
+  const { data, error } = await sb
+    .from('waiting_queue')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    document.getElementById('connDot').classList.add('err');
+    document.getElementById('connLabel').textContent = '接続エラー';
+    return;
+  }
+
+  update(data || []);
+
+  sb.channel('wm-monitor')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'waiting_queue' },
+      async () => {
+        const { data: fresh } = await sb
+          .from('waiting_queue')
+          .select('*')
+          .order('created_at', { ascending: true });
+        update(fresh || []);
+      }
+    )
+    .subscribe(status => {
+      const dot   = document.getElementById('connDot');
+      const label = document.getElementById('connLabel');
+      if (status === 'SUBSCRIBED') {
+        dot.classList.remove('err');
+        label.textContent = '接続中';
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        dot.classList.add('err');
+        label.textContent = '再接続中...';
+      }
+    });
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>受付操作 | 薬局待ち時間モニター</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3248;
+    --accent: #4f8ef7;
+    --accent-dim: #1e3a6e;
+    --green: #2ecc71;
+    --green-dim: #0d3d22;
+    --orange: #f39c12;
+    --orange-dim: #3d2a05;
+    --red: #e74c3c;
+    --text: #e8eaf0;
+    --text-muted: #7b80a0;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* 受付エリア */
+  .issue-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .issue-card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .ippoka-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .ippoka-row:hover { border-color: var(--accent); }
+  .ippoka-row.checked { border-color: var(--orange); background: var(--orange-dim); }
+  .ippoka-row input[type="checkbox"] { display: none; }
+  .check-box {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .ippoka-row.checked .check-box {
+    background: var(--orange);
+    border-color: var(--orange);
+  }
+  .check-box svg { display: none; }
+  .ippoka-row.checked .check-box svg { display: block; }
+  .ippoka-label {
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .ippoka-badge {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .ippoka-row.checked .ippoka-badge {
+    background: var(--orange-dim);
+    color: var(--orange);
+    border-color: var(--orange);
+  }
+
+  .btn-issue {
+    width: 100%;
+    padding: 18px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-issue:hover { background: #6aa0f8; transform: translateY(-1px); }
+  .btn-issue:active { transform: translateY(0); }
+  .btn-issue:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* 発行フラッシュ */
+  .ticket-flash {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .ticket-flash.show { display: flex; animation: fadeIn 0.15s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .ticket-flash-inner {
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: 20px;
+    padding: 40px 60px;
+    text-align: center;
+  }
+  .ticket-flash-label { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+  .ticket-flash-no {
+    font-size: 80px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .ticket-flash-sub { font-size: 14px; color: var(--text-muted); margin-top: 8px; }
+
+  /* 待ちリスト */
+  .queue-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .queue-header h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .queue-count {
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .queue-empty {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .queue-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    transition: background 0.15s;
+  }
+  .queue-item:last-child { border-bottom: none; }
+  .queue-item.calling {
+    background: linear-gradient(90deg, rgba(79,142,247,0.08) 0%, transparent 100%);
+    border-left: 3px solid var(--accent);
+  }
+  .ticket-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    min-width: 52px;
+    letter-spacing: -1px;
+  }
+  .ticket-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .tag-normal { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .tag-ippoka { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--orange); }
+  .tag-calling { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+  .ticket-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+    margin-right: 8px;
+  }
+  .btn-call {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--green);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-call:hover { background: #27ae60; }
+  .btn-call.calling-state {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  /* 待ち時間サマリ */
+  .summary-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .summary-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .summary-value { font-size: 24px; font-weight: 800; color: var(--accent); }
+  .summary-unit { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+
+  /* 設定パネル */
+  .settings-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 0;
+    transition: all 0.15s;
+    width: 100%;
+    text-align: left;
+  }
+  .settings-toggle:hover { border-color: var(--accent); color: var(--text); }
+  .settings-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .settings-panel.open { display: block; }
+  .settings-toggle.open {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-color: var(--accent);
+    color: var(--text);
+    margin-bottom: 0;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .settings-row:last-of-type { margin-bottom: 16px; }
+  .settings-row label { font-size: 14px; }
+  .settings-input {
+    width: 80px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 16px;
+    text-align: center;
+    font-family: inherit;
+  }
+  .settings-input:focus { outline: none; border-color: var(--accent); }
+  .btn-save {
+    width: 100%;
+    padding: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-save:hover { border-color: var(--green); color: var(--green); }
+  .save-ok {
+    display: none;
+    color: var(--green);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .save-ok.show { display: block; }
+
+  /* トースト */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    font-size: 14px;
+    transition: transform 0.25s;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>受付操作画面</h1>
+  <div class="status-dot" id="statusDot" title="接続中"></div>
+</header>
+
+<!-- サマリ -->
+<div class="summary-row">
+  <div class="summary-item">
+    <div class="summary-label">待ち人数</div>
+    <div class="summary-value" id="waitCount">0<span class="summary-unit"> 人</span></div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">目安待ち時間</div>
+    <div class="summary-value" id="waitTime">0<span class="summary-unit"> 分</span></div>
+  </div>
+</div>
+
+<!-- 受付発行 -->
+<div class="issue-card">
+  <h2>受付発行</h2>
+  <div class="ippoka-row" id="ippokaRow" onclick="toggleIppoka()">
+    <input type="checkbox" id="ippokaCheck">
+    <div class="check-box">
+      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+        <path d="M1 5L4.5 8.5L11 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <span class="ippoka-label">一包化あり</span>
+    <span class="ippoka-badge" id="ippokaBadge">+<span id="ippokaAddMin">5</span>分</span>
+  </div>
+  <button class="btn-issue" id="btnIssue" onclick="issueTicket()">受　付</button>
+</div>
+
+<!-- 待ちリスト -->
+<div class="queue-card">
+  <div class="queue-header">
+    <h2>呼び出し待ちリスト</h2>
+    <span class="queue-count" id="queueCountBadge">0件</span>
+  </div>
+  <div id="queueList">
+    <div class="queue-empty">待ち患者はいません</div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<button class="settings-toggle" id="settingsToggle" onclick="toggleSettings()">
+  ⚙ 設定（目安時間）
+</button>
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-row">
+    <label>基本調剤</label>
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="number" class="settings-input" id="baseMin" min="1" max="60" value="10"> 分
+    </div>
+  </div>
+  <div class="settings-row">
+    <label>一包化 加算</label>
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="number" class="settings-input" id="addMin" min="0" max="60" value="5"> 分
+    </div>
+  </div>
+  <button class="btn-save" onclick="saveSettings()">保存</button>
+  <div class="save-ok" id="saveOk">✓ 保存しました</div>
+</div>
+
+<!-- 発行フラッシュ -->
+<div class="ticket-flash" id="ticketFlash" onclick="closeFlash()">
+  <div class="ticket-flash-inner">
+    <div class="ticket-flash-label">受付番号</div>
+    <div class="ticket-flash-no" id="flashNo">001</div>
+    <div class="ticket-flash-sub" id="flashSub">タップで閉じる</div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://jcveasjdfcymxnmbbvka.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjdmVhc2pkZmN5bXhubWJidmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzE3NjksImV4cCI6MjA5MzQ0Nzc2OX0.xAKRFNjf5kkyf3kUjTJtprIrYaIpa80DHx2L4KEkYDg';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let queue = [];
+let settings = { baseMin: 10, addMin: 5 };
+let ippokaChecked = false;
+
+// 設定読み込み
+function loadSettings() {
+  const saved = localStorage.getItem('wm_settings');
+  if (saved) {
+    settings = JSON.parse(saved);
+    document.getElementById('baseMin').value = settings.baseMin;
+    document.getElementById('addMin').value = settings.addMin;
+    document.getElementById('ippokaAddMin').textContent = settings.addMin;
+  }
+}
+
+function saveSettings() {
+  settings.baseMin = parseInt(document.getElementById('baseMin').value) || 10;
+  settings.addMin = parseInt(document.getElementById('addMin').value) || 5;
+  localStorage.setItem('wm_settings', JSON.stringify(settings));
+  document.getElementById('ippokaAddMin').textContent = settings.addMin;
+  const ok = document.getElementById('saveOk');
+  ok.classList.add('show');
+  updateSummary();
+  setTimeout(() => ok.classList.remove('show'), 2000);
+}
+
+// 一包化トグル
+function toggleIppoka() {
+  ippokaChecked = !ippokaChecked;
+  const row = document.getElementById('ippokaRow');
+  row.classList.toggle('checked', ippokaChecked);
+}
+
+// 受付発行
+async function issueTicket() {
+  const btn = document.getElementById('btnIssue');
+  btn.disabled = true;
+  btn.textContent = '処理中...';
+
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: rows } = await sb
+      .from('waiting_queue')
+      .select('ticket_no')
+      .gte('created_at', today + 'T00:00:00+09:00')
+      .lte('created_at', today + 'T23:59:59+09:00')
+      .order('ticket_no', { ascending: false })
+      .limit(1);
+
+    const nextNo = rows && rows.length > 0 ? rows[0].ticket_no + 1 : 1;
+
+    const { error } = await sb.from('waiting_queue').insert({
+      ticket_no: nextNo,
+      status: 'waiting',
+      is_ippoka: ippokaChecked
+    });
+
+    if (error) throw error;
+
+    // フラッシュ表示
+    const pad = String(nextNo).padStart(3, '0');
+    document.getElementById('flashNo').textContent = pad;
+    document.getElementById('flashSub').textContent =
+      (ippokaChecked ? '一包化あり・' : '') + 'タップで閉じる';
+    document.getElementById('ticketFlash').classList.add('show');
+
+    // 一包化リセット
+    ippokaChecked = false;
+    document.getElementById('ippokaRow').classList.remove('checked');
+
+  } catch (e) {
+    showToast('エラー: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '受　付';
+}
+
+function closeFlash() {
+  document.getElementById('ticketFlash').classList.remove('show');
+}
+
+// 呼び出し
+async function callTicket(id, ticketNo) {
+  const { error } = await sb
+    .from('waiting_queue')
+    .update({ status: 'calling', called_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { showToast('エラー: ' + error.message); return; }
+  showToast(`${String(ticketNo).padStart(3,'0')} 番をお呼び出し中`);
+}
+
+// リスト描画
+function renderQueue() {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayQueue = queue.filter(r => r.created_at.slice(0, 10) === today);
+  const waitingItems = todayQueue.filter(r => r.status === 'waiting');
+  const callingItems = todayQueue.filter(r => r.status === 'calling');
+  const displayItems = [...callingItems, ...waitingItems];
+
+  document.getElementById('queueCountBadge').textContent = waitingItems.length + '件';
+
+  const container = document.getElementById('queueList');
+  if (displayItems.length === 0) {
+    container.innerHTML = '<div class="queue-empty">待ち患者はいません</div>';
+    return;
+  }
+
+  container.innerHTML = displayItems.map(r => {
+    const no = String(r.ticket_no).padStart(3, '0');
+    const isCalling = r.status === 'calling';
+    const elapsed = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 60000);
+    const tagClass = isCalling ? 'tag-calling' : (r.is_ippoka ? 'tag-ippoka' : 'tag-normal');
+    const tagLabel = isCalling ? 'お呼び出し中' : (r.is_ippoka ? '一包化' : '通常');
+    const btn = isCalling
+      ? '<button class="btn-call calling-state">呼出済</button>'
+      : `<button class="btn-call" onclick="callTicket('${r.id}', ${r.ticket_no})">呼び出し</button>`;
+    return `
+      <div class="queue-item ${isCalling ? 'calling' : ''}">
+        <span class="ticket-num">${no}</span>
+        <span class="ticket-tag ${tagClass}">${tagLabel}</span>
+        <span class="ticket-time">${elapsed}分前</span>
+        ${btn}
+      </div>`;
+  }).join('');
+}
+
+// サマリ更新
+function updateSummary() {
+  const today = new Date().toISOString().slice(0, 10);
+  const waitingToday = queue.filter(r =>
+    r.status === 'waiting' && r.created_at.slice(0, 10) === today
+  );
+  const count = waitingToday.length;
+  const totalMin = waitingToday.reduce((sum, r) =>
+    sum + settings.baseMin + (r.is_ippoka ? settings.addMin : 0), 0
+  );
+  document.getElementById('waitCount').innerHTML =
+    `${count}<span class="summary-unit"> 人</span>`;
+  document.getElementById('waitTime').innerHTML =
+    `${totalMin}<span class="summary-unit"> 分</span>`;
+}
+
+// 設定パネル
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  const toggle = document.getElementById('settingsToggle');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+}
+
+// トースト
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Supabase初期ロード＆Realtime
+async function init() {
+  loadSettings();
+
+  const { data, error } = await sb
+    .from('waiting_queue')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    document.getElementById('statusDot').style.background = '#e74c3c';
+    showToast('接続エラー: ' + error.message);
+    return;
+  }
+
+  queue = data || [];
+  renderQueue();
+  updateSummary();
+
+  // Realtime購読
+  sb.channel('wm-staff')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'waiting_queue' },
+      async () => {
+        const { data: fresh } = await sb
+          .from('waiting_queue')
+          .select('*')
+          .order('created_at', { ascending: true });
+        queue = fresh || [];
+        renderQueue();
+        updateSummary();
+      }
+    )
+    .subscribe();
+}
+
+init();
+</script>
+</body>
+</html>
