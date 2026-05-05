@@ -540,7 +540,7 @@ async function issueTicket() {
   btn.textContent = '処理中...';
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayJST();
     const { data: rows } = await sb
       .from('waiting_queue')
       .select('ticket_no')
@@ -615,8 +615,11 @@ function toggleShowCalling() {
 
 // リスト描画
 function renderQueue() {
-  const today = new Date().toISOString().slice(0, 10);
-  const todayQueue = queue.filter(r => r.created_at.slice(0, 10) === today);
+  const today = getTodayJST();
+  const todayQueue = queue.filter(r => {
+    const jst = new Date(new Date(r.created_at).getTime() + 9 * 60 * 60 * 1000);
+    return jst.toISOString().slice(0, 10) === today;
+  });
   const waitingItems = todayQueue.filter(r => r.status === 'waiting');
   const callingItems = todayQueue.filter(r => r.status === 'calling');
   const displayItems = showCalling ? [...callingItems, ...waitingItems] : waitingItems;
@@ -652,10 +655,11 @@ function renderQueue() {
 
 // サマリ更新
 function updateSummary() {
-  const today = new Date().toISOString().slice(0, 10);
-  const waitingToday = queue.filter(r =>
-    r.status === 'waiting' && r.created_at.slice(0, 10) === today
-  );
+  const today = getTodayJST();
+  const waitingToday = queue.filter(r => {
+    const jst = new Date(new Date(r.created_at).getTime() + 9 * 60 * 60 * 1000);
+    return r.status === 'waiting' && jst.toISOString().slice(0, 10) === today;
+  });
   const count = waitingToday.length;
   const totalMin = waitingToday.reduce((sum, r) =>
     sum + settings.baseMin + (r.is_ippoka ? settings.addMin : 0), 0
@@ -683,9 +687,16 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// JSTの今日の日付を返す（yyyy-MM-dd）
+function getTodayJST() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
 // Supabase初期ロード＆Realtime
 async function init() {
-  loadSettings();
+  await loadSettings();
 
   const { data, error } = await sb
     .from('waiting_queue')
