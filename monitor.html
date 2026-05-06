@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>待ち時間モニター</title>
+<!-- monitor.html V1.5 - 調剤中エリア枠囲み・番号カード拡大・注意書き強調 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,63 +13,133 @@
     background: #0a0c12;
     color: #e8eaf0;
     font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
-    overflow-x: hidden;
+    overflow: hidden;
   }
   body {
+    display: flex;
+    align-items: stretch;
+    height: 100vh;
+  }
+  .left-col {
+    flex: 0 0 40%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding-bottom: 60px;
+    padding: 40px 20px;
+    border-right: 2px solid #2e3248;
   }
-
+  .right-col {
+    flex: 0 0 60%;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 32px;
+    overflow-y: auto;
+  }
   .label {
-    font-size: clamp(18px, 3vw, 32px);
+    font-size: clamp(16px, 2.2vw, 28px);
     font-weight: 500;
     color: #7b80a0;
     letter-spacing: 0.15em;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    text-align: center;
   }
-
   .value {
-    font-size: clamp(100px, 22vw, 220px);
+    font-size: clamp(80px, 16vw, 180px);
     font-weight: 800;
     line-height: 1;
     letter-spacing: -4px;
     transition: opacity 0.4s;
+    text-align: center;
   }
-
   .unit {
-    font-size: clamp(28px, 5vw, 56px);
+    font-size: clamp(22px, 4vw, 48px);
     font-weight: 400;
     color: #7b80a0;
     letter-spacing: 0.1em;
-    margin-bottom: 60px;
+    margin-bottom: 48px;
+    text-align: center;
   }
-
   .divider {
-    width: clamp(60px, 12vw, 120px);
+    width: clamp(50px, 8vw, 100px);
     height: 2px;
     background: #2e3248;
-    margin: 40px 0;
+    margin: 32px auto;
     border-radius: 1px;
   }
-
   .count-value { color: #4f8ef7; }
   .time-value  { color: #e8eaf0; }
-
-  .value.zero { color: #3a3e55; }
-
+  .value.zero  { color: #3a3e55; }
   @keyframes flash {
     0%   { opacity: 0.4; }
     100% { opacity: 1; }
   }
   .flash { animation: flash 0.35s ease-out; }
-
+  .queue-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid #2e3248;
+    border-radius: 16px;
+    padding: 28px 24px;
+  }
+  .queue-section-label {
+    font-size: clamp(16px, 2.2vw, 28px);
+    font-weight: 500;
+    color: #7b80a0;
+    letter-spacing: 0.15em;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .queue-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    flex: 1;
+    align-content: flex-start;
+  }
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1a1e2e;
+    border: 1px solid #2e3248;
+    border-radius: 12px;
+    padding: 14px 22px;
+    font-size: clamp(24px, 3.5vw, 48px);
+    font-weight: 700;
+    color: #e8eaf0;
+  }
+  .badge-ippoka {
+    font-size: clamp(11px, 1.4vw, 18px);
+    background: #4f8ef7;
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-weight: 500;
+  }
+  .queue-note {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #2e3248;
+    line-height: 2;
+    text-align: center;
+  }
+  .queue-note .ippoka-note {
+    font-size: clamp(13px, 1.6vw, 20px);
+    color: #4f8ef7;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .queue-note .called-note {
+    font-size: clamp(13px, 1.6vw, 20px);
+    color: #7b80a0;
+    display: block;
+  }
   .conn {
     position: fixed;
-    bottom: 20px;
-    right: 24px;
+    bottom: 16px;
+    right: 20px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -86,70 +157,32 @@
     0%,100% { opacity: 1; }
     50%      { opacity: 0.3; }
   }
-
-  /* 調剤中リスト */
-  .queue-section {
-    margin-top: 20px;
-    text-align: center;
-    width: 100%;
-  }
-  .queue-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 16px;
-    padding: 0 40px;
-  }
-  .queue-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #1a1e2e;
-    border-radius: 12px;
-    padding: 12px 24px;
-    font-size: clamp(28px, 5vw, 52px);
-    font-weight: 700;
-    color: #e8eaf0;
-  }
-  .badge-ippoka {
-    font-size: clamp(12px, 1.8vw, 20px);
-    background: #4f8ef7;
-    color: #fff;
-    border-radius: 6px;
-    padding: 2px 10px;
-    font-weight: 500;
-  }
-  .queue-note {
-    font-size: clamp(11px, 1.6vw, 16px);
-    color: #4a4f6a;
-    margin-top: 16px;
-    line-height: 1.9;
-    padding: 0 20px;
-  }
-  .queue-note .ippoka-note {
-    color: #4f8ef7;
-  }
 </style>
 </head>
 <body>
 
-<div class="label">現在の待ち人数</div>
-<div class="value count-value" id="countVal">0</div>
-<div class="unit">名</div>
+<!-- 左カラム：待ち人数・目安時間 -->
+<div class="left-col">
+  <div class="label">現在の待ち人数</div>
+  <div class="value count-value" id="countVal">0</div>
+  <div class="unit">名</div>
 
-<div class="divider"></div>
+  <div class="divider"></div>
 
-<div class="label">目安待ち時間</div>
-<div class="value time-value" id="timeVal">0</div>
-<div class="unit">分</div>
+  <div class="label">目安待ち時間</div>
+  <div class="value time-value" id="timeVal">0</div>
+  <div class="unit">分</div>
+</div>
 
-<div class="queue-section">
-  <div class="label">調剤中</div>
-  <div class="queue-list" id="queueList"></div>
-  <div class="queue-note">
-    <span class="ippoka-note">🔵 のついた番号はお時間をいただくため、順番が前後する場合があります</span><br>
-    番号が表示されていない場合はお呼び出し済みです
+<!-- 右カラム：調剤中 -->
+<div class="right-col">
+  <div class="queue-section">
+    <div class="queue-section-label">調剤中</div>
+    <div class="queue-list" id="queueList"></div>
+    <div class="queue-note">
+      <span class="ippoka-note">🔵 のついた番号はお時間をいただくため、順番が前後する場合があります</span>
+      <span class="called-note">番号が表示されていない場合はお呼び出し済みです</span>
+    </div>
   </div>
 </div>
 
