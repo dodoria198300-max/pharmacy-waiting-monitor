@@ -12,14 +12,14 @@
     background: #0a0c12;
     color: #e8eaf0;
     font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
-    overflow: hidden;
+    overflow-x: hidden;
   }
   body {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0;
+    padding-bottom: 60px;
   }
 
   .label {
@@ -57,17 +57,14 @@
   .count-value { color: #4f8ef7; }
   .time-value  { color: #e8eaf0; }
 
-  /* ゼロのとき少し暗く */
   .value.zero { color: #3a3e55; }
 
-  /* 更新フラッシュ */
   @keyframes flash {
     0%   { opacity: 0.4; }
     100% { opacity: 1; }
   }
   .flash { animation: flash 0.35s ease-out; }
 
-  /* 接続状態 */
   .conn {
     position: fixed;
     bottom: 20px;
@@ -89,6 +86,50 @@
     0%,100% { opacity: 1; }
     50%      { opacity: 0.3; }
   }
+
+  /* 調剤中リスト */
+  .queue-section {
+    margin-top: 20px;
+    text-align: center;
+    width: 100%;
+  }
+  .queue-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 0 40px;
+  }
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1a1e2e;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 700;
+    color: #e8eaf0;
+  }
+  .badge-ippoka {
+    font-size: clamp(12px, 1.8vw, 20px);
+    background: #4f8ef7;
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-weight: 500;
+  }
+  .queue-note {
+    font-size: clamp(11px, 1.6vw, 16px);
+    color: #4a4f6a;
+    margin-top: 16px;
+    line-height: 1.9;
+    padding: 0 20px;
+  }
+  .queue-note .ippoka-note {
+    color: #4f8ef7;
+  }
 </style>
 </head>
 <body>
@@ -102,6 +143,15 @@
 <div class="label">目安待ち時間</div>
 <div class="value time-value" id="timeVal">0</div>
 <div class="unit">分</div>
+
+<div class="queue-section">
+  <div class="label">調剤中</div>
+  <div class="queue-list" id="queueList"></div>
+  <div class="queue-note">
+    <span class="ippoka-note">🔵 のついた番号はお時間をいただくため、順番が前後する場合があります</span><br>
+    番号が表示されていない場合はお呼び出し済みです
+  </div>
+</div>
 
 <div class="conn">
   <div class="conn-dot" id="connDot"></div>
@@ -159,6 +209,18 @@ function update(queue) {
 
   flash(countEl);
   flash(timeEl);
+
+  // 調剤中リスト更新
+  const listEl = document.getElementById('queueList');
+  listEl.innerHTML = '';
+  waiting.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'queue-item';
+    item.innerHTML =
+      String(r.ticket_no).padStart(3, '0') +
+      (r.is_ippoka ? '<span class="badge-ippoka">🔵 一包化</span>' : '');
+    listEl.appendChild(item);
+  });
 }
 
 async function init() {
