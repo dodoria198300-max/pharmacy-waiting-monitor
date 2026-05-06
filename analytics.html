@@ -44,24 +44,74 @@
     border-bottom: 1px solid var(--border);
   }
   header h1 { font-size: 16px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em; }
-  .date-range {
+
+  /* 日付ナビ */
+  .date-nav {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--text-muted);
-  }
-  .date-range select {
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
     background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+  }
+  .date-nav-btn {
+    width: 36px; height: 36px;
+    background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
-    padding: 6px 10px;
-    font-size: 13px;
+    font-size: 16px;
     cursor: pointer;
-    font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
   }
-  .date-range select:focus { outline: none; border-color: var(--accent); }
+  .date-nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .date-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .date-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .date-display input[type="date"] {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    width: 140px;
+    letter-spacing: 0.05em;
+  }
+  .date-display input[type="date"]:focus { outline: none; }
+  .today-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-weight: 600;
+  }
+  .btn-today {
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-today:hover { border-color: var(--accent); color: var(--accent); }
 
   /* セクション */
   .section {
@@ -104,15 +154,15 @@
   .c-orange { color: var(--orange); }
   .c-red    { color: var(--red); }
 
-  /* グラフ */
-  .chart-wrap { position: relative; height: 220px; }
-
   /* 一包化比較 */
-  .compare-grid {
+  .ippoka-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
+  }
+  @media (min-width: 600px) {
+    .ippoka-grid { grid-template-columns: repeat(4, 1fr); }
   }
   .compare-card {
     background: var(--surface2);
@@ -125,41 +175,108 @@
   .compare-card .value { font-size: 22px; font-weight: 800; }
   .compare-card .sub   { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-  /* ローディング */
-  .loading {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 14px;
-    padding: 40px;
-  }
+  /* グラフ */
+  .chart-wrap { position: relative; height: 220px; }
 
-  /* 空データ */
-  .no-data {
-    text-align: center;
+  /* 期間分析トグル */
+  .period-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
     color: var(--text-muted);
-    font-size: 13px;
-    padding: 32px;
+    margin-bottom: 0;
+    transition: all 0.15s;
+    width: 100%;
+    text-align: left;
   }
+  .period-toggle:hover { border-color: var(--accent); color: var(--text); }
+  .period-toggle.open {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .period-panel {
+    display: none;
+    border: 1px solid var(--accent);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 16px;
+    background: var(--surface);
+  }
+  .period-panel.open { display: block; }
+
+  /* 期間選択 */
+  .period-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .period-range label { font-size: 13px; color: var(--text-muted); }
+  .period-range input[type="date"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .period-range input[type="date"]:focus { outline: none; border-color: var(--accent); }
+  .btn-search {
+    padding: 8px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-search:hover { background: #6aa0f8; }
+
+  .period-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 20px 0 12px;
+  }
+  .period-section-title:first-of-type { margin-top: 0; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>分析画面</h1>
-  <div class="date-range">
-    <span>期間</span>
-    <select id="rangeSel" onchange="loadAll()">
-      <option value="7">直近7日</option>
-      <option value="30" selected>直近30日</option>
-      <option value="90">直近90日</option>
-      <option value="365">直近1年</option>
-    </select>
-  </div>
 </header>
 
-<!-- 今日のサマリ -->
+<!-- 日付ナビ -->
+<div class="date-nav">
+  <button class="date-nav-btn" id="btnPrev" onclick="changeDate(-1)">&#8249;</button>
+  <div class="date-display">
+    <input type="date" id="datePicker" onchange="onDateChange()">
+    <span class="today-badge" id="todayBadge">今日</span>
+  </div>
+  <button class="date-nav-btn" id="btnNext" onclick="changeDate(1)">&#8250;</button>
+  <button class="btn-today" onclick="goToday()">今日に戻る</button>
+</div>
+
+<!-- 日次サマリ -->
 <div class="section">
-  <div class="section-title">今日のサマリ</div>
+  <div class="section-title" id="summaryTitle">今日のサマリ</div>
   <div class="summary-grid">
     <div class="summary-card">
       <div class="label">受付件数</div>
@@ -184,44 +301,10 @@
   </div>
 </div>
 
-<!-- 時間帯別混雑 -->
+<!-- 一包化サマリ -->
 <div class="section">
-  <div class="section-title">時間帯別 受付件数（選択期間）</div>
-  <div class="chart-wrap"><canvas id="chartHour"></canvas></div>
-</div>
-
-<!-- 曜日別傾向 -->
-<div class="section">
-  <div class="section-title">曜日別 平均受付件数（選択期間）</div>
-  <div class="chart-wrap"><canvas id="chartDow"></canvas></div>
-</div>
-
-<!-- 日次推移 -->
-<div class="section">
-  <div class="section-title">日次 受付件数推移</div>
-  <div class="chart-wrap"><canvas id="chartDaily"></canvas></div>
-</div>
-
-<!-- 月次推移 -->
-<div class="section">
-  <div class="section-title">月次 受付件数推移</div>
-  <div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>
-</div>
-
-<!-- 一包化分析 -->
-<div class="section">
-  <div class="section-title">一包化分析（選択期間）</div>
-  <div class="compare-grid">
-    <div class="compare-card">
-      <div class="label">通常 平均待ち時間</div>
-      <div class="value c-blue" id="i-normal">-</div>
-      <div class="sub">分</div>
-    </div>
-    <div class="compare-card">
-      <div class="label">一包化 平均待ち時間</div>
-      <div class="value c-orange" id="i-ippoka">-</div>
-      <div class="sub">分</div>
-    </div>
+  <div class="section-title">一包化分析</div>
+  <div class="ippoka-grid">
     <div class="compare-card">
       <div class="label">一包化件数</div>
       <div class="value c-orange" id="i-count">-</div>
@@ -232,8 +315,104 @@
       <div class="value c-orange" id="i-ratio">-</div>
       <div class="sub">%</div>
     </div>
+    <div class="compare-card">
+      <div class="label">通常 平均待ち</div>
+      <div class="value c-blue" id="i-normal">-</div>
+      <div class="sub">分</div>
+    </div>
+    <div class="compare-card">
+      <div class="label">一包化 平均待ち</div>
+      <div class="value c-orange" id="i-ippoka">-</div>
+      <div class="sub">分</div>
+    </div>
+  </div>
+</div>
+
+<!-- 時間帯別グラフ -->
+<div class="section">
+  <div class="section-title" id="hourTitle">時間帯別 受付件数（今日）</div>
+  <div class="chart-wrap"><canvas id="chartHour"></canvas></div>
+</div>
+
+<!-- 期間分析トグル -->
+<button class="period-toggle" id="periodToggle" onclick="togglePeriod()">
+  <span>📊 期間分析を表示</span>
+  <span id="periodArrow">▼</span>
+</button>
+<div class="period-panel" id="periodPanel">
+
+  <!-- 期間選択 -->
+  <div class="period-range">
+    <label>期間</label>
+    <input type="date" id="periodFrom">
+    <label>〜</label>
+    <input type="date" id="periodTo">
+    <button class="btn-search" onclick="loadPeriod()">表示</button>
+  </div>
+
+  <!-- 期間サマリ -->
+  <div class="period-section-title">期間サマリ</div>
+  <div class="summary-grid" style="margin-bottom:16px">
+    <div class="summary-card">
+      <div class="label">総受付件数</div>
+      <div class="value c-blue" id="p-count">-</div>
+      <div class="unit">件</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">1日平均件数</div>
+      <div class="value c-blue" id="p-avg-count">-</div>
+      <div class="unit">件/日</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">平均待ち時間</div>
+      <div class="value c-green" id="p-avg">-</div>
+      <div class="unit">分</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">途中帰宅率</div>
+      <div class="value c-red" id="p-left">-</div>
+      <div class="unit">%</div>
+    </div>
+  </div>
+
+  <!-- 曜日別 -->
+  <div class="period-section-title">曜日別 平均受付件数</div>
+  <div class="chart-wrap" style="margin-bottom:16px"><canvas id="chartDow"></canvas></div>
+
+  <!-- 日次推移 -->
+  <div class="period-section-title">日次 受付件数推移</div>
+  <div class="chart-wrap" style="margin-bottom:16px"><canvas id="chartDaily"></canvas></div>
+
+  <!-- 月次推移 -->
+  <div class="period-section-title">月次 受付件数推移</div>
+  <div class="chart-wrap" style="margin-bottom:16px"><canvas id="chartMonthly"></canvas></div>
+
+  <!-- 一包化期間分析 -->
+  <div class="period-section-title">一包化 月次推移</div>
+  <div class="ippoka-grid" style="margin-bottom:12px">
+    <div class="compare-card">
+      <div class="label">期間 一包化件数</div>
+      <div class="value c-orange" id="p-i-count">-</div>
+      <div class="sub">件</div>
+    </div>
+    <div class="compare-card">
+      <div class="label">期間 一包化割合</div>
+      <div class="value c-orange" id="p-i-ratio">-</div>
+      <div class="sub">%</div>
+    </div>
+    <div class="compare-card">
+      <div class="label">通常 平均待ち</div>
+      <div class="value c-blue" id="p-i-normal">-</div>
+      <div class="sub">分</div>
+    </div>
+    <div class="compare-card">
+      <div class="label">一包化 平均待ち</div>
+      <div class="value c-orange" id="p-i-ippoka">-</div>
+      <div class="sub">分</div>
+    </div>
   </div>
   <div class="chart-wrap"><canvas id="chartIppoka"></canvas></div>
+
 </div>
 
 <script>
@@ -242,15 +421,28 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const CHART_DEFAULTS = {
-  color: '#7b80a0',
-  borderColor: '#2e3248',
-  gridColor: 'rgba(255,255,255,0.05)',
-};
-Chart.defaults.color = CHART_DEFAULTS.color;
-Chart.defaults.borderColor = CHART_DEFAULTS.borderColor;
+const CHART_DEFAULTS = { gridColor: 'rgba(255,255,255,0.05)' };
+Chart.defaults.color = '#7b80a0';
+Chart.defaults.borderColor = '#2e3248';
 
 let charts = {};
+let currentDate = getTodayJST();
+
+function getTodayJST() {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
+function waitMin(r) {
+  if (!r.called_at) return null;
+  return (new Date(r.called_at) - new Date(r.created_at)) / 60000;
+}
+
+function avgMin(arr) {
+  const valid = arr.filter(r => r.called_at);
+  if (valid.length === 0) return '-';
+  return Math.round(valid.reduce((s, r) => s + waitMin(r), 0) / valid.length);
+}
 
 function destroyChart(id) {
   if (charts[id]) { charts[id].destroy(); delete charts[id]; }
@@ -262,37 +454,75 @@ function makeChart(id, config) {
   charts[id] = new Chart(ctx, config);
 }
 
-function getRange() {
-  return parseInt(document.getElementById('rangeSel').value);
+// ===================================================
+// 日付ナビ
+// ===================================================
+function initDatePicker() {
+  const picker = document.getElementById('datePicker');
+  picker.value = currentDate;
+  picker.max   = getTodayJST();
+  updateNavButtons();
 }
 
-function getRangeStart(days) {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString();
+function updateNavButtons() {
+  const today = getTodayJST();
+  document.getElementById('btnNext').disabled = (currentDate >= today);
+  document.getElementById('todayBadge').style.display = (currentDate === today) ? '' : 'none';
 }
 
-function waitMin(r) {
-  if (!r.called_at) return null;
-  return (new Date(r.called_at) - new Date(r.created_at)) / 60000;
+function changeDate(delta) {
+  const d = new Date(currentDate);
+  d.setDate(d.getDate() + delta);
+  const next = d.toISOString().slice(0, 10);
+  if (next > getTodayJST()) return;
+  currentDate = next;
+  document.getElementById('datePicker').value = currentDate;
+  updateNavButtons();
+  loadDay(currentDate);
 }
 
-// 今日のサマリ
-function calcToday(all) {
-  const today = new Date().toISOString().slice(0, 10);
-  const rows = all.filter(r => r.created_at.slice(0, 10) === today);
+function onDateChange() {
+  const val = document.getElementById('datePicker').value;
+  if (!val || val > getTodayJST()) return;
+  currentDate = val;
+  updateNavButtons();
+  loadDay(currentDate);
+}
 
-  // 受付件数
-  document.getElementById('s-count').textContent = rows.length;
+function goToday() {
+  currentDate = getTodayJST();
+  document.getElementById('datePicker').value = currentDate;
+  updateNavButtons();
+  loadDay(currentDate);
+}
 
-  // 平均待ち時間
-  const called = rows.filter(r => r.status === 'calling' && r.called_at);
-  const avgMin = called.length > 0
-    ? Math.round(called.reduce((s, r) => s + waitMin(r), 0) / called.length)
-    : 0;
-  document.getElementById('s-avg').textContent = avgMin;
+// ===================================================
+// 日次データ読み込み
+// ===================================================
+async function loadDay(date) {
+  const isToday = date === getTodayJST();
+  const label   = isToday ? '今日のサマリ' : date + ' のサマリ';
+  document.getElementById('summaryTitle').textContent = label;
+  document.getElementById('hourTitle').textContent =
+    '時間帯別 受付件数（' + (isToday ? '今日' : date) + '）';
 
-  // 最大同時待ち（時系列でシミュレート）
+  const from = date + 'T00:00:00+09:00';
+  const to   = date + 'T23:59:59+09:00';
+
+  const { data } = await sb
+    .from('waiting_queue')
+    .select('*')
+    .gte('created_at', from)
+    .lte('created_at', to)
+    .order('created_at', { ascending: true });
+
+  const rows = data || [];
+
+  // サマリ
+  const called   = rows.filter(r => r.called_at);
+  const leftCount = rows.filter(r => r.status === 'left').length;
+
+  // 最大同時待ち
   const events = [];
   rows.forEach(r => {
     events.push({ t: new Date(r.created_at), d: +1 });
@@ -302,26 +532,34 @@ function calcToday(all) {
   events.sort((a, b) => a.t - b.t);
   let cur = 0, peak = 0;
   events.forEach(e => { cur += e.d; if (cur > peak) peak = cur; });
-  document.getElementById('s-peak').textContent = peak;
 
-  // 途中帰宅率
-  const leftCount = rows.filter(r => r.status === 'left').length;
-  const leftRate = rows.length > 0 ? Math.round(leftCount / rows.length * 100) : 0;
-  document.getElementById('s-left').textContent = leftRate;
-}
+  document.getElementById('s-count').textContent = rows.length;
+  document.getElementById('s-avg').textContent   = avgMin(rows);
+  document.getElementById('s-peak').textContent  = peak;
+  document.getElementById('s-left').textContent  =
+    rows.length > 0 ? Math.round(leftCount / rows.length * 100) : 0;
 
-// 時間帯別
-function calcHour(rows) {
+  // 一包化
+  const ippokaRows   = rows.filter(r => r.is_ippoka);
+  const normalCalled = rows.filter(r => !r.is_ippoka && r.called_at);
+  const ippokaCalled = rows.filter(r =>  r.is_ippoka && r.called_at);
+
+  document.getElementById('i-count').textContent  = ippokaRows.length;
+  document.getElementById('i-ratio').textContent  =
+    rows.length > 0 ? Math.round(ippokaRows.length / rows.length * 100) : 0;
+  document.getElementById('i-normal').textContent = avgMin(normalCalled.length ? normalCalled : []);
+  document.getElementById('i-ippoka').textContent = avgMin(ippokaCalled.length ? ippokaCalled : []);
+
+  // 時間帯別グラフ
   const counts = Array(24).fill(0);
   rows.forEach(r => {
-    const h = new Date(r.created_at).getHours();
+    const h = new Date(new Date(r.created_at).getTime() + 9*60*60*1000).getUTCHours();
     counts[h]++;
   });
-  const labels = Array.from({length: 24}, (_, i) => `${i}時`);
   makeChart('chartHour', {
     type: 'bar',
     data: {
-      labels,
+      labels: Array.from({length: 24}, (_, i) => i + '時'),
       datasets: [{
         label: '受付件数',
         data: counts,
@@ -342,24 +580,63 @@ function calcHour(rows) {
   });
 }
 
-// 曜日別
-function calcDow(rows, days) {
-  const DOW = ['日','月','火','水','木','金','土'];
-  const totals = Array(7).fill(0);
-  const dayCounts = Array(7).fill(0);
+// ===================================================
+// 期間分析トグル
+// ===================================================
+function togglePeriod() {
+  const panel  = document.getElementById('periodPanel');
+  const toggle = document.getElementById('periodToggle');
+  const arrow  = document.getElementById('periodArrow');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+  arrow.textContent = isOpen ? '▼' : '▲';
 
-  // 期間内の各曜日の日数を数える
+  if (!isOpen) {
+    // 初期値：直近30日
+    const to   = getTodayJST();
+    const from = new Date(Date.now() - 29 * 86400000 + 9*3600000).toISOString().slice(0,10);
+    document.getElementById('periodFrom').value = from;
+    document.getElementById('periodTo').value   = to;
+    loadPeriod();
+  }
+}
+
+// ===================================================
+// 期間データ読み込み
+// ===================================================
+async function loadPeriod() {
+  const from = document.getElementById('periodFrom').value;
+  const to   = document.getElementById('periodTo').value;
+  if (!from || !to) return;
+
+  const { data } = await sb
+    .from('waiting_queue')
+    .select('*')
+    .gte('created_at', from + 'T00:00:00+09:00')
+    .lte('created_at', to   + 'T23:59:59+09:00')
+    .order('created_at', { ascending: true });
+
+  const rows = data || [];
+  const days = Math.max(1, Math.round((new Date(to) - new Date(from)) / 86400000) + 1);
+
+  // 期間サマリ
+  const leftCount = rows.filter(r => r.status === 'left').length;
+  document.getElementById('p-count').textContent     = rows.length;
+  document.getElementById('p-avg-count').textContent = Math.round(rows.length / days * 10) / 10;
+  document.getElementById('p-avg').textContent       = avgMin(rows);
+  document.getElementById('p-left').textContent      =
+    rows.length > 0 ? Math.round(leftCount / rows.length * 100) : 0;
+
+  // 曜日別
+  const DOW = ['日','月','火','水','木','金','土'];
+  const totals    = Array(7).fill(0);
+  const dayCounts = Array(7).fill(0);
   for (let i = 0; i < days; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+    const d = new Date(new Date(from).getTime() + i * 86400000);
     dayCounts[d.getDay()]++;
   }
-
-  rows.forEach(r => {
-    const dow = new Date(r.created_at).getDay();
-    totals[dow]++;
-  });
-
+  rows.forEach(r => { totals[new Date(r.created_at).getDay()]++; });
   const avgs = totals.map((t, i) => dayCounts[i] > 0 ? Math.round(t / dayCounts[i] * 10) / 10 : 0);
 
   makeChart('chartDow', {
@@ -371,8 +648,7 @@ function calcDow(rows, days) {
         data: avgs,
         backgroundColor: ['rgba(231,76,60,0.6)','rgba(79,142,247,0.6)','rgba(79,142,247,0.6)','rgba(79,142,247,0.6)','rgba(79,142,247,0.6)','rgba(79,142,247,0.6)','rgba(46,204,113,0.6)'],
         borderColor: ['#e74c3c','#4f8ef7','#4f8ef7','#4f8ef7','#4f8ef7','#4f8ef7','#2ecc71'],
-        borderWidth: 1,
-        borderRadius: 4,
+        borderWidth: 1, borderRadius: 4,
       }]
     },
     options: {
@@ -384,36 +660,27 @@ function calcDow(rows, days) {
       }
     }
   });
-}
 
-// 日次推移
-function calcDaily(rows, days) {
-  const map = {};
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    map[d.toISOString().slice(0, 10)] = 0;
+  // 日次推移
+  const dailyMap = {};
+  for (let i = 0; i < days; i++) {
+    const d = new Date(new Date(from).getTime() + i * 86400000 + 9*3600000);
+    dailyMap[d.toISOString().slice(0,10)] = 0;
   }
   rows.forEach(r => {
-    const k = r.created_at.slice(0, 10);
-    if (k in map) map[k]++;
+    const k = new Date(new Date(r.created_at).getTime() + 9*3600000).toISOString().slice(0,10);
+    if (k in dailyMap) dailyMap[k]++;
   });
-  const labels = Object.keys(map).map(k => k.slice(5));
-  const data = Object.values(map);
-
   makeChart('chartDaily', {
     type: 'line',
     data: {
-      labels,
+      labels: Object.keys(dailyMap).map(k => k.slice(5)),
       datasets: [{
         label: '受付件数',
-        data,
+        data: Object.values(dailyMap),
         borderColor: '#4f8ef7',
         backgroundColor: 'rgba(79,142,247,0.1)',
-        borderWidth: 2,
-        pointRadius: 3,
-        fill: true,
-        tension: 0.3,
+        borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3,
       }]
     },
     options: {
@@ -425,27 +692,24 @@ function calcDaily(rows, days) {
       }
     }
   });
-}
 
-// 月次推移
-function calcMonthly(all) {
-  const map = {};
-  all.forEach(r => {
-    const k = r.created_at.slice(0, 7);
-    map[k] = (map[k] || 0) + 1;
+  // 月次推移
+  const monthlyMap = {};
+  rows.forEach(r => {
+    const k = r.created_at.slice(0,7);
+    monthlyMap[k] = (monthlyMap[k] || 0) + 1;
   });
-  const keys = Object.keys(map).sort();
+  const mKeys = Object.keys(monthlyMap).sort();
   makeChart('chartMonthly', {
     type: 'bar',
     data: {
-      labels: keys,
+      labels: mKeys,
       datasets: [{
         label: '受付件数',
-        data: keys.map(k => map[k]),
+        data: mKeys.map(k => monthlyMap[k]),
         backgroundColor: 'rgba(46,204,113,0.6)',
         borderColor: '#2ecc71',
-        borderWidth: 1,
-        borderRadius: 4,
+        borderWidth: 1, borderRadius: 4,
       }]
     },
     options: {
@@ -457,55 +721,31 @@ function calcMonthly(all) {
       }
     }
   });
-}
 
-// 一包化分析
-function calcIppoka(rows) {
-  const normal  = rows.filter(r => !r.is_ippoka && r.called_at);
-  const ippoka  = rows.filter(r =>  r.is_ippoka && r.called_at);
-  const allIppoka = rows.filter(r => r.is_ippoka);
+  // 一包化期間分析
+  const ippokaRows   = rows.filter(r => r.is_ippoka);
+  const normalCalled = rows.filter(r => !r.is_ippoka && r.called_at);
+  const ippokaCalled = rows.filter(r =>  r.is_ippoka && r.called_at);
+  document.getElementById('p-i-count').textContent  = ippokaRows.length;
+  document.getElementById('p-i-ratio').textContent  =
+    rows.length > 0 ? Math.round(ippokaRows.length / rows.length * 100) : 0;
+  document.getElementById('p-i-normal').textContent = avgMin(normalCalled.length ? normalCalled : []);
+  document.getElementById('p-i-ippoka').textContent = avgMin(ippokaCalled.length ? ippokaCalled : []);
 
-  const avg = arr => arr.length > 0
-    ? Math.round(arr.reduce((s, r) => s + waitMin(r), 0) / arr.length)
-    : 0;
-
-  document.getElementById('i-normal').textContent = normal.length > 0 ? avg(normal) : '-';
-  document.getElementById('i-ippoka').textContent = ippoka.length > 0 ? avg(ippoka) : '-';
-  document.getElementById('i-count').textContent = allIppoka.length;
-  document.getElementById('i-ratio').textContent = rows.length > 0
-    ? Math.round(allIppoka.length / rows.length * 100)
-    : 0;
-
-  // 月次一包化件数推移
   const mapN = {}, mapI = {};
   rows.forEach(r => {
-    const k = r.created_at.slice(0, 7);
+    const k = r.created_at.slice(0,7);
     if (r.is_ippoka) mapI[k] = (mapI[k] || 0) + 1;
     else             mapN[k] = (mapN[k] || 0) + 1;
   });
-  const keys = [...new Set([...Object.keys(mapN), ...Object.keys(mapI)])].sort();
-
+  const iKeys = [...new Set([...Object.keys(mapN), ...Object.keys(mapI)])].sort();
   makeChart('chartIppoka', {
     type: 'bar',
     data: {
-      labels: keys,
+      labels: iKeys,
       datasets: [
-        {
-          label: '通常',
-          data: keys.map(k => mapN[k] || 0),
-          backgroundColor: 'rgba(79,142,247,0.6)',
-          borderColor: '#4f8ef7',
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-        {
-          label: '一包化',
-          data: keys.map(k => mapI[k] || 0),
-          backgroundColor: 'rgba(243,156,18,0.6)',
-          borderColor: '#f39c12',
-          borderWidth: 1,
-          borderRadius: 4,
-        }
+        { label: '通常',   data: iKeys.map(k => mapN[k] || 0), backgroundColor: 'rgba(79,142,247,0.6)',  borderColor: '#4f8ef7', borderWidth: 1, borderRadius: 4 },
+        { label: '一包化', data: iKeys.map(k => mapI[k] || 0), backgroundColor: 'rgba(243,156,18,0.6)', borderColor: '#f39c12', borderWidth: 1, borderRadius: 4 }
       ]
     },
     options: {
@@ -519,28 +759,9 @@ function calcIppoka(rows) {
   });
 }
 
-async function loadAll() {
-  const days = getRange();
-  const since = getRangeStart(days);
-
-  // 全データ（月次用）
-  const { data: all } = await sb
-    .from('waiting_queue')
-    .select('*')
-    .order('created_at', { ascending: true });
-
-  // 選択期間データ
-  const rows = (all || []).filter(r => r.created_at >= since);
-
-  calcToday(all || []);
-  calcHour(rows);
-  calcDow(rows, days);
-  calcDaily(rows, days);
-  calcMonthly(all || []);
-  calcIppoka(rows);
-}
-
-loadAll();
+// 初期化
+initDatePicker();
+loadDay(currentDate);
 </script>
 </body>
 </html>
