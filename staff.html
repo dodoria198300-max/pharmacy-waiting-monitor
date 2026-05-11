@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>受付操作 | 薬局待ち時間モニター</title>
+<!-- staff.html V1.6 - 一旦退出(ready)ボタン追加 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -292,6 +293,25 @@
     flex-shrink: 0;
   }
   .btn-left:hover { border-color: var(--red); color: var(--red); }
+  .btn-ready {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-ready:hover { border-color: var(--orange); color: var(--orange); }
+  .tag-ready { background: #2d1f00; color: var(--orange); border: 1px solid var(--orange); }
+  .queue-item.ready-state {
+    background: linear-gradient(90deg, rgba(243,156,18,0.08) 0%, transparent 100%);
+    border-left: 3px solid var(--orange);
+  }
 
   /* 待ち時間サマリ */
   .summary-row {
@@ -582,6 +602,26 @@ function closeFlash() {
   document.getElementById('ticketFlash').classList.remove('show');
 }
 
+// 一旦退出（ready）
+async function readyTicket(id, ticketNo) {
+  const { error } = await sb
+    .from('waiting_queue')
+    .update({ status: 'ready' })
+    .eq('id', id);
+  if (error) { showToast('エラー: ' + error.message); return; }
+  showToast(`${String(ticketNo).padStart(3,'0')} 番を受取待ちにしました`);
+}
+
+// 会計済み（ready→calling）
+async function completeTicket(id, ticketNo) {
+  const { error } = await sb
+    .from('waiting_queue')
+    .update({ status: 'calling', called_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { showToast('エラー: ' + error.message); return; }
+  showToast(`${String(ticketNo).padStart(3,'0')} 番の会計が完了しました`);
+}
+
 // 帰宅
 async function leftTicket(id, ticketNo) {
   if (!confirm(`${String(ticketNo).padStart(3,'0')} 番を途中帰宅として処理しますか？`)) return;
@@ -621,8 +661,11 @@ function renderQueue() {
     return jst.toISOString().slice(0, 10) === today;
   });
   const waitingItems = todayQueue.filter(r => r.status === 'waiting');
+  const readyItems   = todayQueue.filter(r => r.status === 'ready');
   const callingItems = todayQueue.filter(r => r.status === 'calling');
-  const displayItems = showCalling ? [...callingItems, ...waitingItems] : waitingItems;
+  const displayItems = showCalling
+    ? [...callingItems, ...readyItems, ...waitingItems]
+    : [...readyItems, ...waitingItems];
 
   document.getElementById('queueCountBadge').textContent = waitingItems.length + '件';
 
@@ -635,19 +678,28 @@ function renderQueue() {
   container.innerHTML = displayItems.map(r => {
     const no = String(r.ticket_no).padStart(3, '0');
     const isCalling = r.status === 'calling';
+    const isReady   = r.status === 'ready';
     const elapsed = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 60000);
-    const tagClass = isCalling ? 'tag-calling' : (r.is_ippoka ? 'tag-ippoka' : 'tag-normal');
-    const tagLabel = isCalling ? 'お呼び出し中' : (r.is_ippoka ? '一包化' : '通常');
+    const tagClass = isCalling ? 'tag-calling' : isReady ? 'tag-ready' : (r.is_ippoka ? 'tag-ippoka' : 'tag-normal');
+    const tagLabel = isCalling ? 'お呼び出し中' : isReady ? '受取待ち' : (r.is_ippoka ? '一包化' : '通常');
     const btn = isCalling
-      ? '<button class="btn-call calling-state">呼出済</button>'
-      : `<button class="btn-call" onclick="callTicket('${r.id}', ${r.ticket_no})">呼び出し</button>`;
-    const btnLeft = `<button class="btn-left" onclick="leftTicket('${r.id}', ${r.ticket_no})">帰宅</button>`;
+      ? '<button class="btn-call calling-state">会計済</button>'
+      : isReady
+        ? `<button class="btn-call" onclick="completeTicket('${r.id}', ${r.ticket_no})">会計済み</button>`
+        : `<button class="btn-call" onclick="callTicket('${r.id}', ${r.ticket_no})">呼び出し</button>`;
+    const btnReady = (!isCalling && !isReady)
+      ? `<button class="btn-ready" onclick="readyTicket('${r.id}', ${r.ticket_no})">一旦退出</button>`
+      : '';
+    const btnLeft = (!isCalling)
+      ? `<button class="btn-left" onclick="leftTicket('${r.id}', ${r.ticket_no})">帰宅</button>`
+      : '';
     return `
-      <div class="queue-item ${isCalling ? 'calling' : ''}">
+      <div class="queue-item ${isCalling ? 'calling' : isReady ? 'ready-state' : ''}">
         <span class="ticket-num">${no}</span>
         <span class="ticket-tag ${tagClass}">${tagLabel}</span>
         <span class="ticket-time">${elapsed}分前</span>
         ${btn}
+        ${btnReady}
         ${btnLeft}
       </div>`;
   }).join('');
