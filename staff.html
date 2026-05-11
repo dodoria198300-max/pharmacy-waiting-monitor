@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>受付操作 | 薬局待ち時間モニター</title>
-<!-- staff.html V1.7 - 修正機能・ソートタブ・確認ダイアログ追加 -->
+<!-- staff.html V1.8 - 表現統一（投薬終了・調剤待ちリスト） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -568,12 +568,12 @@
 <!-- 待ちリスト -->
 <div class="queue-card">
   <div class="queue-header">
-    <h2>呼び出し待ちリスト</h2>
+    <h2>調剤待ちリスト</h2>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <div class="sort-tabs">
         <button class="sort-tab active" data-filter="waiting" onclick="setFilter('waiting')">待ち中</button>
         <button class="sort-tab tab-ready" data-filter="ready" onclick="setFilter('ready')">受取待ち</button>
-        <button class="sort-tab" data-filter="calling" onclick="setFilter('calling')">呼出済</button>
+        <button class="sort-tab" data-filter="calling" onclick="setFilter('calling')">投薬済</button>
         <button class="sort-tab" data-filter="all" onclick="setFilter('all')">全て</button>
       </div>
       <span class="queue-count" id="queueCountBadge">0件</span>
@@ -613,7 +613,7 @@
     <div class="fix-options">
       <div class="fix-opt opt-waiting" onclick="confirmFix('waiting')">調剤中</div>
       <div class="fix-opt opt-ready" onclick="confirmFix('ready')">受取待ち</div>
-      <div class="fix-opt opt-calling" onclick="confirmFix('calling')">会計済み</div>
+      <div class="fix-opt opt-calling" onclick="confirmFix('calling')">投薬済み</div>
       <div class="fix-opt opt-left" onclick="confirmFix('left')">帰宅</div>
     </div>
     <button class="fix-cancel" onclick="closeFixModal()">キャンセル</button>
@@ -765,7 +765,7 @@ async function callTicket(id, ticketNo) {
     .update({ status: 'calling', called_at: new Date().toISOString() })
     .eq('id', id);
   if (error) { showToast('エラー: ' + error.message); return; }
-  showToast(`${String(ticketNo).padStart(3,'0')} 番をお呼び出し中`);
+  showToast(`${String(ticketNo).padStart(3,'0')} 番の投薬を終了しました`);
 }
 
 let filterMode = 'waiting';
@@ -795,7 +795,7 @@ function closeFixModal() {
 
 async function confirmFix(newStatus) {
   const no = String(fixTargetNo).padStart(3, '0');
-  const labelMap = { waiting: '調剤中', ready: '受取待ち', calling: '会計済み', left: '帰宅' };
+  const labelMap = { waiting: '調剤中', ready: '受取待ち', calling: '投薬済み', left: '帰宅' };
   if (!confirm(`${no} 番を「${labelMap[newStatus]}」に修正しますか？`)) return;
   const updates = { status: newStatus };
   if (newStatus === 'calling') updates.called_at = new Date().toISOString();
@@ -839,10 +839,10 @@ function renderQueue() {
     const tagClass = isCalling ? 'tag-calling' : isReady ? 'tag-ready' : (r.is_ippoka ? 'tag-ippoka' : 'tag-normal');
     const tagLabel = isCalling ? 'お呼び出し中' : isReady ? '受取待ち' : (r.is_ippoka ? '一包化' : '通常');
     const btn = isCalling
-      ? '<button class="btn-call calling-state">会計済</button>'
+      ? '<button class="btn-call calling-state">投薬済</button>'
       : isReady
-        ? `<button class="btn-call" onclick="completeTicket('${r.id}', ${r.ticket_no})">会計済み</button>`
-        : `<button class="btn-call" onclick="callTicket('${r.id}', ${r.ticket_no})">呼び出し</button>`;
+        ? `<button class="btn-call" onclick="completeTicket('${r.id}', ${r.ticket_no})">投薬終了</button>`
+        : `<button class="btn-call" onclick="callTicket('${r.id}', ${r.ticket_no})">投薬終了</button>`;
     const btnReady = (!isCalling && !isReady)
       ? `<button class="btn-ready" onclick="readyTicket('${r.id}', ${r.ticket_no})">一旦退出</button>`
       : '';
