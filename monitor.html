@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>待ち時間モニター</title>
-<!-- monitor.html V1.9 - 文字最大化・レイアウト最適化 -->
+<!-- monitor.html V2.0 - エリア配色・件数可変サイズ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,7 +40,7 @@
   .label {
     font-size: clamp(18px, 3vw, 40px);
     font-weight: 500;
-    color: #7b80a0;
+    color: #a0a8c8;
     letter-spacing: 0.12em;
     margin-bottom: 6px;
     text-align: center;
@@ -80,15 +80,16 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    border: 2px solid #2e3248;
+    border: 2px solid #2a4a7f;
     border-radius: 16px;
     padding: 16px 18px;
     min-height: 0;
+    background: #0d1829;
   }
   .queue-section-label {
     font-size: clamp(18px, 2.6vw, 34px);
-    font-weight: 500;
-    color: #7b80a0;
+    font-weight: 600;
+    color: #7ab3f7;
     letter-spacing: 0.15em;
     text-align: center;
     margin-bottom: 14px;
@@ -104,23 +105,34 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #1a1e2e;
-    border: 1px solid #2e3248;
+    background: #112240;
+    border: 1px solid #2a4a7f;
     border-radius: 12px;
     padding: 12px 20px;
     font-size: clamp(32px, 4.5vw, 64px);
     font-weight: 700;
-    color: #e8eaf0;
+    color: #e8f0ff;
+    transition: font-size 0.3s;
+  }
+  /* 件数少ない時に大きく */
+  .queue-item.size-lg {
+    font-size: clamp(48px, 7vw, 100px);
+    padding: 16px 28px;
+  }
+  .queue-item.size-xl {
+    font-size: clamp(64px, 10vw, 140px);
+    padding: 20px 36px;
   }
   .ready-section {
-    border: 2px solid #f39c12;
+    border: 2px solid #c67c00;
     border-radius: 16px;
     padding: 14px 18px;
+    background: #1a1000;
   }
   .ready-section-label {
     font-size: clamp(18px, 2.6vw, 34px);
-    font-weight: 500;
-    color: #f39c12;
+    font-weight: 600;
+    color: #f5a623;
     letter-spacing: 0.15em;
     text-align: center;
     margin-bottom: 12px;
@@ -134,13 +146,22 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #2d1f00;
-    border: 1px solid #f39c12;
+    background: #2d1800;
+    border: 1px solid #c67c00;
     border-radius: 12px;
     padding: 12px 20px;
     font-size: clamp(32px, 4.5vw, 64px);
     font-weight: 700;
-    color: #f39c12;
+    color: #f5a623;
+    transition: font-size 0.3s;
+  }
+  .ready-item.size-lg {
+    font-size: clamp(48px, 7vw, 100px);
+    padding: 16px 28px;
+  }
+  .ready-item.size-xl {
+    font-size: clamp(64px, 10vw, 140px);
+    padding: 20px 36px;
   }
   .badge-ippoka {
     font-size: clamp(13px, 1.8vw, 24px);
@@ -163,19 +184,13 @@
   }
   .queue-note .order-note {
     font-size: clamp(18px, 2.6vw, 36px);
-    color: #e8eaf0;
+    color: #c8d8f8;
     display: block;
     line-height: 1.5;
   }
   .queue-note .ippoka-note {
     font-size: clamp(17px, 2.4vw, 32px);
-    color: #4f8ef7;
-    display: block;
-    line-height: 1.5;
-  }
-  .queue-note .called-note {
-    font-size: clamp(17px, 2.4vw, 32px);
-    color: #7b80a0;
+    color: #7ab3f7;
     display: block;
     line-height: 1.5;
   }
@@ -230,7 +245,6 @@
     <div class="queue-note">
       <span class="order-note">受付順に調剤していますが、処方内容により順番が前後する場合があります</span>
       <span class="ippoka-note">🔵 のついた番号はお時間をいただくため、さらに前後する場合があります</span>
-      <span class="called-note">いずれにも表示されていない場合はお会計済みです</span>
     </div>
   </div>
 </div>
@@ -301,9 +315,10 @@ function update(queue) {
   const readyListEl  = document.getElementById('readyList');
   readySection.style.display = ready.length > 0 ? 'block' : 'none';
   readyListEl.innerHTML = '';
+  const rSize = ready.length <= 1 ? 'size-xl' : ready.length <= 3 ? 'size-lg' : '';
   ready.forEach(r => {
     const item = document.createElement('div');
-    item.className = 'ready-item';
+    item.className = 'ready-item' + (rSize ? ' ' + rSize : '');
     item.innerHTML = String(r.ticket_no).padStart(3, '0') +
       (r.is_ippoka ? '<span class="badge-ippoka">🔵 一包化</span>' : '');
     readyListEl.appendChild(item);
@@ -312,9 +327,10 @@ function update(queue) {
   // 調剤中リスト更新
   const listEl = document.getElementById('queueList');
   listEl.innerHTML = '';
+  const qSize = waiting.length <= 1 ? 'size-xl' : waiting.length <= 3 ? 'size-lg' : '';
   waiting.forEach(r => {
     const item = document.createElement('div');
-    item.className = 'queue-item';
+    item.className = 'queue-item' + (qSize ? ' ' + qSize : '');
     item.innerHTML =
       String(r.ticket_no).padStart(3, '0') +
       (r.is_ippoka ? '<span class="badge-ippoka">🔵 一包化</span>' : '');
