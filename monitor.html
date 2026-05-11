@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>待ち時間モニター</title>
-<!-- monitor.html V1.7 - 注意書き3行・文字さらに拡大 -->
+<!-- monitor.html V1.8 - 受取待ちエリア追加 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -110,6 +110,37 @@
     font-weight: 700;
     color: #e8eaf0;
   }
+  .ready-section {
+    margin-bottom: 16px;
+    border: 2px solid #f39c12;
+    border-radius: 16px;
+    padding: 20px 24px;
+  }
+  .ready-section-label {
+    font-size: clamp(16px, 2.2vw, 28px);
+    font-weight: 500;
+    color: #f39c12;
+    letter-spacing: 0.15em;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .ready-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .ready-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #2d1f00;
+    border: 1px solid #f39c12;
+    border-radius: 12px;
+    padding: 14px 22px;
+    font-size: clamp(24px, 3.5vw, 48px);
+    font-weight: 700;
+    color: #f39c12;
+  }
   .badge-ippoka {
     font-size: clamp(11px, 1.4vw, 18px);
     background: #4f8ef7;
@@ -188,13 +219,18 @@
 
 <!-- 右カラム：調剤中 -->
 <div class="right-col">
+  <div class="ready-section" id="readySection" style="display:none">
+    <div class="ready-section-label">🟡 お受け取り可能</div>
+    <div class="ready-list" id="readyList"></div>
+  </div>
+
   <div class="queue-section">
     <div class="queue-section-label">調剤中</div>
     <div class="queue-list" id="queueList"></div>
     <div class="queue-note">
       <span class="order-note">受付順に調剤していますが、処方内容により順番が前後する場合があります</span>
       <span class="ippoka-note">🔵 のついた番号はお時間をいただくため、さらに前後する場合があります</span>
-      <span class="called-note">調剤中に番号が表示されていない場合はお呼び出し済みです</span>
+      <span class="called-note">いずれにも表示されていない場合はお会計済みです</span>
     </div>
   </div>
 </div>
@@ -255,6 +291,23 @@ function update(queue) {
 
   flash(countEl);
   flash(timeEl);
+
+  // 受取待ちリスト更新
+  const ready = queue.filter(r =>
+    r.status === 'ready' &&
+    r.created_at.slice(0, 10) === today
+  );
+  const readySection = document.getElementById('readySection');
+  const readyListEl  = document.getElementById('readyList');
+  readySection.style.display = ready.length > 0 ? 'block' : 'none';
+  readyListEl.innerHTML = '';
+  ready.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'ready-item';
+    item.innerHTML = String(r.ticket_no).padStart(3, '0') +
+      (r.is_ippoka ? '<span class="badge-ippoka">🔵 一包化</span>' : '');
+    readyListEl.appendChild(item);
+  });
 
   // 調剤中リスト更新
   const listEl = document.getElementById('queueList');
