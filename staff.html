@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>受付操作 | 薬局待ち時間モニター</title>
-<!-- staff.html V1.6 - 一旦退出(ready)ボタン追加 -->
+<!-- staff.html V1.7 - 修正機能・ソートタブ・確認ダイアログ追加 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
@@ -179,6 +179,111 @@
     margin-bottom: 16px;
     overflow: hidden;
   }
+  /* ソートタブ */
+  .sort-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .sort-tab {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .sort-tab:hover { border-color: var(--accent); color: var(--text); }
+  .sort-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .sort-tab.tab-ready.active { background: #2d1f00; border-color: var(--orange); color: var(--orange); }
+
+  /* 修正ボタン */
+  .btn-fix {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-fix:hover { border-color: #9b59b6; color: #9b59b6; }
+
+  /* 修正モーダル */
+  .fix-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .fix-modal.show { display: flex; }
+  .fix-modal-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 280px;
+  }
+  .fix-modal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .fix-modal-no {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .fix-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .fix-opt {
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .fix-opt:hover { border-color: var(--accent); color: var(--accent); }
+  .fix-opt.opt-waiting:hover { border-color: var(--accent); color: var(--accent); }
+  .fix-opt.opt-ready:hover { border-color: var(--orange); color: var(--orange); }
+  .fix-opt.opt-calling:hover { border-color: var(--green); color: var(--green); }
+  .fix-opt.opt-left:hover { border-color: var(--red); color: var(--red); }
+  .fix-cancel {
+    width: 100%;
+    padding: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .fix-cancel:hover { border-color: var(--red); color: var(--red); }
+
   .btn-toggle-calling {
     font-size: 11px;
     padding: 4px 10px;
@@ -464,8 +569,13 @@
 <div class="queue-card">
   <div class="queue-header">
     <h2>呼び出し待ちリスト</h2>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="btn-toggle-calling" id="btnToggleCalling" onclick="toggleShowCalling()">呼出済を表示</button>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="sort-tabs">
+        <button class="sort-tab active" data-filter="waiting" onclick="setFilter('waiting')">待ち中</button>
+        <button class="sort-tab tab-ready" data-filter="ready" onclick="setFilter('ready')">受取待ち</button>
+        <button class="sort-tab" data-filter="calling" onclick="setFilter('calling')">呼出済</button>
+        <button class="sort-tab" data-filter="all" onclick="setFilter('all')">全て</button>
+      </div>
       <span class="queue-count" id="queueCountBadge">0件</span>
     </div>
   </div>
@@ -493,6 +603,21 @@
   </div>
   <button class="btn-save" onclick="saveSettings()">保存</button>
   <div class="save-ok" id="saveOk">✓ 保存しました</div>
+</div>
+
+<!-- 修正モーダル -->
+<div class="fix-modal" id="fixModal">
+  <div class="fix-modal-inner">
+    <div class="fix-modal-title">ステータス修正</div>
+    <div class="fix-modal-no" id="fixModalNo">001</div>
+    <div class="fix-options">
+      <div class="fix-opt opt-waiting" onclick="confirmFix('waiting')">調剤中</div>
+      <div class="fix-opt opt-ready" onclick="confirmFix('ready')">受取待ち</div>
+      <div class="fix-opt opt-calling" onclick="confirmFix('calling')">会計済み</div>
+      <div class="fix-opt opt-left" onclick="confirmFix('left')">帰宅</div>
+    </div>
+    <button class="fix-cancel" onclick="closeFixModal()">キャンセル</button>
+  </div>
 </div>
 
 <!-- 発行フラッシュ -->
@@ -643,14 +768,41 @@ async function callTicket(id, ticketNo) {
   showToast(`${String(ticketNo).padStart(3,'0')} 番をお呼び出し中`);
 }
 
-let showCalling = false;
+let filterMode = 'waiting';
+let fixTargetId = null;
+let fixTargetNo = null;
 
-function toggleShowCalling() {
-  showCalling = !showCalling;
-  const btn = document.getElementById('btnToggleCalling');
-  btn.classList.toggle('active', showCalling);
-  btn.textContent = showCalling ? '呼出済を非表示' : '呼出済を表示';
+function setFilter(mode) {
+  filterMode = mode;
+  document.querySelectorAll('.sort-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.filter === mode);
+  });
   renderQueue();
+}
+
+function openFixModal(id, ticketNo) {
+  fixTargetId = id;
+  fixTargetNo = ticketNo;
+  document.getElementById('fixModalNo').textContent = String(ticketNo).padStart(3, '0') + ' 番';
+  document.getElementById('fixModal').classList.add('show');
+}
+
+function closeFixModal() {
+  fixTargetId = null;
+  fixTargetNo = null;
+  document.getElementById('fixModal').classList.remove('show');
+}
+
+async function confirmFix(newStatus) {
+  const no = String(fixTargetNo).padStart(3, '0');
+  const labelMap = { waiting: '調剤中', ready: '受取待ち', calling: '会計済み', left: '帰宅' };
+  if (!confirm(`${no} 番を「${labelMap[newStatus]}」に修正しますか？`)) return;
+  const updates = { status: newStatus };
+  if (newStatus === 'calling') updates.called_at = new Date().toISOString();
+  const { error } = await sb.from('waiting_queue').update(updates).eq('id', fixTargetId);
+  if (error) { showToast('エラー: ' + error.message); closeFixModal(); return; }
+  showToast(`${no} 番を「${labelMap[newStatus]}」に修正しました`);
+  closeFixModal();
 }
 
 // リスト描画
@@ -663,9 +815,13 @@ function renderQueue() {
   const waitingItems = todayQueue.filter(r => r.status === 'waiting');
   const readyItems   = todayQueue.filter(r => r.status === 'ready');
   const callingItems = todayQueue.filter(r => r.status === 'calling');
-  const displayItems = showCalling
+  const displayItems = filterMode === 'all'
     ? [...callingItems, ...readyItems, ...waitingItems]
-    : [...readyItems, ...waitingItems];
+    : filterMode === 'calling'
+      ? callingItems
+      : filterMode === 'ready'
+        ? readyItems
+        : [...readyItems, ...waitingItems];
 
   document.getElementById('queueCountBadge').textContent = waitingItems.length + '件';
 
@@ -693,6 +849,7 @@ function renderQueue() {
     const btnLeft = (!isCalling)
       ? `<button class="btn-left" onclick="leftTicket('${r.id}', ${r.ticket_no})">帰宅</button>`
       : '';
+    const btnFix = `<button class="btn-fix" onclick="openFixModal('${r.id}', ${r.ticket_no})">修正</button>`;
     return `
       <div class="queue-item ${isCalling ? 'calling' : isReady ? 'ready-state' : ''}">
         <span class="ticket-num">${no}</span>
@@ -701,6 +858,7 @@ function renderQueue() {
         ${btn}
         ${btnReady}
         ${btnLeft}
+        ${btnFix}
       </div>`;
   }).join('');
 }
