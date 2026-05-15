@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>受付 | 薬局待ち時間モニター</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700;900&family=DM+Sans:wght@300;400;700&display=swap');
+
+  :root {
+    --green:   #1a7a4a;
+    --green-l: #23a063;
+    --green-xl:#e6f5ee;
+    --orange:  #e07b30;
+    --orange-l:#f5e6d6;
+    --bg:      #f4f7f5;
+    --card:    #ffffff;
+    --text:    #1a2e22;
+    --muted:   #6b8876;
+    --border:  #d0e4d8;
+    --shadow:  0 8px 40px rgba(26,122,74,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── ヘッダー ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .header .label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--green);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-size: clamp(26px, 5vw, 38px);
+    font-weight: 900;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .header p {
+    margin-top: 12px;
+    font-size: clamp(15px, 2.5vw, 18px);
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  /* ── 選択画面 ── */
+  #screen-select {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .choice-btn {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 36px 40px;
+    border-radius: 20px;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    box-shadow: var(--shadow);
+    background: var(--card);
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .choice-btn:active {
+    transform: scale(0.97);
+  }
+
+  .choice-btn.primary {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .choice-btn.primary .icon { background: rgba(255,255,255,0.15); color: #fff; }
+  .choice-btn.primary .btn-title { color: #fff; }
+  .choice-btn.primary .btn-sub   { color: rgba(255,255,255,0.75); }
+
+  .choice-btn.secondary {
+    background: var(--card);
+    border-color: var(--border);
+  }
+  .choice-btn.secondary .icon { background: var(--green-xl); color: var(--green); }
+  .choice-btn.secondary .btn-title { color: var(--text); }
+  .choice-btn.secondary .btn-sub   { color: var(--muted); }
+
+  .icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    flex-shrink: 0;
+  }
+
+  .btn-body { flex: 1; }
+  .btn-title {
+    font-size: clamp(20px, 3.5vw, 26px);
+    font-weight: 900;
+    line-height: 1.2;
+  }
+  .btn-sub {
+    font-size: clamp(13px, 2vw, 15px);
+    font-weight: 300;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  .arrow {
+    font-size: 24px;
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+  .choice-btn.primary .arrow { opacity: 0.7; color: #fff; }
+
+  /* ── 番号発行画面 ── */
+  #screen-issued {
+    display: none;
+    width: 100%;
+    max-width: 560px;
+    text-align: center;
+  }
+
+  .ticket-card {
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 48px 40px 40px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ticket-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: var(--green);
+  }
+  .ticket-card.firstvisit::before {
+    background: var(--orange);
+  }
+
+  .ticket-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .ticket-no {
+    font-family: 'DM Sans', sans-serif;
+    font-size: clamp(80px, 20vw, 120px);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--green);
+    letter-spacing: -2px;
+  }
+  .ticket-card.firstvisit .ticket-no {
+    color: var(--orange);
+  }
+
+  .ticket-time {
+    font-size: 15px;
+    color: var(--muted);
+    margin-top: 12px;
+    font-weight: 300;
+  }
+
+  .ticket-divider {
+    border: none;
+    border-top: 1.5px dashed var(--border);
+    margin: 28px 0;
+  }
+
+  .ticket-instruction {
+    font-size: clamp(16px, 2.5vw, 19px);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .ticket-note {
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  /* 初回案内ボックス */
+  .firstvisit-box {
+    background: var(--orange-l);
+    border: 2px solid var(--orange);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    text-align: left;
+    display: none;
+  }
+  .firstvisit-box.show { display: block; }
+  .firstvisit-box .fv-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--orange);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .firstvisit-box ol {
+    padding-left: 20px;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 2;
+    font-weight: 400;
+  }
+
+  /* 戻るボタン */
+  .back-btn {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 16px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .back-btn:active {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  /* ── エラー ── */
+  .error-msg {
+    display: none;
+    background: #fdecea;
+    border: 1.5px solid #e57373;
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: #c62828;
+    font-size: 14px;
+    margin-top: 16px;
+    text-align: center;
+  }
+  .error-msg.show { display: block; }
+
+  /* ── ローディング ── */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(244,247,245,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .loading-overlay.show { display: flex; }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  /* ── フェードイン ── */
+  .fade-in {
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+
+</style>
+</head>
+<body>
+
+<!-- ローディング -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">受付中...</div>
+</div>
+
+
+<!-- ヘッダー -->
+<div class="header">
+  <div class="label">薬局受付</div>
+  <h1>ようこそ</h1>
+  <p>当てはまる方を選んでタッチしてください</p>
+</div>
+
+<!-- 選択画面 -->
+<div id="screen-select">
+  <button class="choice-btn primary" onclick="handleSelect(false)">
+    <div class="icon">🏥</div>
+    <div class="btn-body">
+      <div class="btn-title">来局したことがある</div>
+      <div class="btn-sub">以前もご来局いただいた方</div>
+    </div>
+    <div class="arrow">›</div>
+  </button>
+
+  <button class="choice-btn secondary" onclick="handleSelect(true)">
+    <div class="icon">👋</div>
+    <div class="btn-body">
+      <div class="btn-title">はじめてご来局</div>
+      <div class="btn-sub">当薬局をはじめてご利用の方</div>
+    </div>
+    <div class="arrow">›</div>
+  </button>
+
+  <div class="error-msg" id="errorMsg">
+    受付に失敗しました。スタッフにお声がけください。
+  </div>
+</div>
+
+<!-- 番号発行画面 -->
+<div id="screen-issued">
+  <!-- 初回案内 -->
+  <div class="firstvisit-box" id="firstvisitBox">
+    <div class="fv-title">📋 はじめての方へ</div>
+    <ol>
+      <li>処方箋を窓口へお出しください</li>
+      <li>お待ちの間に問診タブレットへお進みください</li>
+    </ol>
+  </div>
+
+  <!-- 番号カード -->
+  <div class="ticket-card" id="ticketCard">
+    <div class="ticket-label">受付番号</div>
+    <div class="ticket-no" id="ticketNo">—</div>
+    <div class="ticket-time" id="ticketTime"></div>
+    <hr class="ticket-divider">
+    <div class="ticket-instruction" id="ticketInstruction">
+      処方箋を窓口へお出しください
+    </div>
+    <div class="ticket-note" id="ticketNote">
+      モニターで番号をご確認ください
+    </div>
+  </div>
+
+  <button class="back-btn" onclick="goBack()">← 最初に戻る</button>
+</div>
+
+<script>
+  // ── 接続設定（analytics.htmlと同じ直書き方式）──────
+  const SUPABASE_URL = 'https://jcveasjdfcymxnmbbvka.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjdmVhc2pkZmN5bXhubWJidmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NzE3NjksImV4cCI6MjA5MzQ0Nzc2OX0.xAKRFNjf5kkyf3kUjTJtprIrYaIpa80DHx2L4KEkYDg';
+
+  // ── Supabase API ───────────────────────────────────
+  async function fetchSupabase(path, method = 'GET', body = null) {
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    };
+    const res = await fetch(SUPABASE_URL + path, {
+      method, headers,
+      body: body ? JSON.stringify(body) : null
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // 今日の最大ticket_noを取得して+1
+  async function getNextTicketNo() {
+    const today = new Date().toISOString().slice(0, 10);
+    const data = await fetchSupabase(
+      `/rest/v1/waiting_queue?select=ticket_no&created_at=gte.${today}T00:00:00&order=ticket_no.desc&limit=1`
+    );
+    return data.length > 0 ? data[0].ticket_no + 1 : 1;
+  }
+
+  // 番号発行
+  async function issueTicket(isFirstvisit) {
+    const ticketNo = await getNextTicketNo();
+    await fetchSupabase('/rest/v1/waiting_queue', 'POST', {
+      ticket_no: ticketNo,
+      status: 'waiting',
+      is_ippoka: false,
+      is_firstvisit: isFirstvisit,
+      has_questionnaire: false
+    });
+    return ticketNo;
+  }
+
+  // ── UI ────────────────────────────────────────────
+  function showLoading(v) {
+    document.getElementById('loading').classList.toggle('show', v);
+  }
+
+  function showError(v) {
+    document.getElementById('errorMsg').classList.toggle('show', v);
+  }
+
+  function pad(n) { return String(n).padStart(3, '0'); }
+
+  function nowStr() {
+    const d = new Date();
+    return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} 受付`;
+  }
+
+  async function handleSelect(isFirstvisit) {
+    showError(false);
+    showLoading(true);
+
+    try {
+      const ticketNo = await issueTicket(isFirstvisit);
+      showLoading(false);
+      showIssued(ticketNo, isFirstvisit);
+    } catch (e) {
+      showLoading(false);
+      showError(true);
+      console.error(e);
+    }
+  }
+
+  function showIssued(ticketNo, isFirstvisit) {
+    // 画面切り替え
+    document.getElementById('screen-select').style.display = 'none';
+    document.querySelector('.header').style.display = 'none';
+
+    const issued = document.getElementById('screen-issued');
+    issued.style.display = 'block';
+    issued.classList.add('fade-in');
+
+    // 番号セット
+    document.getElementById('ticketNo').textContent = pad(ticketNo);
+    document.getElementById('ticketTime').textContent = nowStr();
+
+    // 初回スタイル
+    const card = document.getElementById('ticketCard');
+    const fvBox = document.getElementById('firstvisitBox');
+
+    if (isFirstvisit) {
+      card.classList.add('firstvisit');
+      fvBox.classList.add('show');
+      document.getElementById('ticketInstruction').textContent = 'まず処方箋を窓口へお出しください';
+      document.getElementById('ticketNote').textContent = 'その後、問診タブレットへお進みください';
+    } else {
+      card.classList.remove('firstvisit');
+      fvBox.classList.remove('show');
+      document.getElementById('ticketInstruction').textContent = '処方箋を窓口へお出しください';
+      document.getElementById('ticketNote').textContent = 'モニターで番号をご確認ください';
+    }
+
+    // 一定時間後に自動で戻る（60秒）
+    setTimeout(() => goBack(), 60000);
+  }
+
+  function goBack() {
+    document.getElementById('screen-select').style.display = '';
+    document.querySelector('.header').style.display = '';
+    document.getElementById('screen-issued').style.display = 'none';
+    document.getElementById('screen-issued').classList.remove('fade-in');
+    document.getElementById('ticketCard').classList.remove('firstvisit');
+    document.getElementById('firstvisitBox').classList.remove('show');
+    showError(false);
+  }
+</script>
+</body>
+</html>
